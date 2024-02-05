@@ -1,6 +1,9 @@
+
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.tree import plot_tree
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -18,14 +21,20 @@ titanic_data['Age'].fillna(titanic_data['Age'].median(), inplace=True)
 titanic_data = pd.get_dummies(titanic_data, columns=['Sex', 'Embarked'], drop_first=True)
 
 
-# Select features and target variable
 X = titanic_data[['Pclass', 'Age', 'SibSp', 'Parch', 'Fare', 'Sex_male', 'Embarked_Q', 'Embarked_S']]
 y = titanic_data['Survived']
-#Train Test Split 
+
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
+### Random Forest test
+rf_model = RandomForestClassifier(random_state=42)
+rf_model.fit(X_train, y_train)
+rf_predictions = rf_model.predict(X_test)
+print("Random Forest Model:")
+print("Accuracy:", accuracy_score(y_test, rf_predictions))
+print("Classification Report:\n", classification_report(y_test, rf_predictions))
 
-# Create Decision Tree model
+### Create Decision Tree model
 dt_model = DecisionTreeClassifier(random_state=42,max_depth=3)
 
 # Train the model
@@ -46,7 +55,6 @@ print(class_report)
 
 
 #Visualize the decision tree
-from sklearn.tree import plot_tree
 plt.figure(figsize=(12, 8))
 plot_tree(dt_model, feature_names=X.columns, class_names=['Not Survived', 'Survived'], filled=True, rounded=True)
 plt.show()
