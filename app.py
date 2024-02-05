@@ -22,6 +22,8 @@ titanic_data['Age'].fillna(titanic_data['Age'].median(), inplace=True)
 titanic_data = pd.get_dummies(titanic_data, columns=['Sex', 'Embarked'], drop_first=True)
 
 
+
+
 # Select features and target variable
 X = titanic_data[['Pclass', 'Age', 'SibSp', 'Parch', 'Fare', 'Sex_male', 'Embarked_Q', 'Embarked_S']]
 y = titanic_data['Survived']
@@ -85,13 +87,13 @@ def predict():
         sibsp = int(request.args.get('sibsp'))
         parch = int(request.args.get('parch'))
         fare = float(request.args.get('fare'))
-        sex = str(request.args.get('sex'))
-        embarked = str(request.args.get('embarked'))
+        sex = int(request.args.get('sex_male'))
+        embarked_q = int(request.args.get('embarked_Q'))
+        embarked_s = int(request.args.get('embarked_S'))
 
         # Make a prediction using the model
-        input_data = pd.DataFrame([[pclass, age, sibsp, parch, fare, sex, embarked]],
-                                  columns=['Pclass', 'Age', 'SibSp', 'Parch', 'Fare', 'Sex', 'Embarked'])
-        hot_encoding = pd.get_dummies(input_data, columns=['Sex', 'Embarked'], drop_first=True)
+        input_data = pd.DataFrame([[pclass, age, sibsp, parch, fare, sex, embarked_q,embarked_s]],
+                                  columns=['Pclass', 'Age', 'SibSp', 'Parch', 'Fare', 'Sex_male', 'Embarked_Q','Embarked_S'])
         prediction = dt_model.predict(input_data)[0]
         
 
@@ -102,8 +104,5 @@ def predict():
     except Exception as e:
         # Handle errors and provide a standardized error response
         error_message = str(e)
-        response = create_response(success=False, message=f"Prediction failed: {error_message},\n Data : {hot_encoding}")
+        response = create_response(success=False, message=f"Prediction failed: {error_message},\n Data : {input_data}")
         return jsonify(response)
-
-
-app.run(__name__,debug=True, port=5000)
