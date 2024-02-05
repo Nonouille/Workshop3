@@ -5,6 +5,7 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 import matplotlib.pyplot as plt
 import seaborn as sns
 from flask import Flask, request, jsonify
+from sklearn.ensemble import RandomForestClassifier
 
 app = Flask(__name__)
 
@@ -28,12 +29,19 @@ y = titanic_data['Survived']
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
 
+### Random Forest test
+rf_model = RandomForestClassifier(random_state=42)
+rf_model.fit(X_train, y_train)
+rf_predictions = rf_model.predict(X_test)
+print("Random Forest Model:")
+print("Accuracy:", accuracy_score(y_test, rf_predictions))
+print("Classification Report:\n", classification_report(y_test, rf_predictions))
+
+
 # Create Decision Tree model
 dt_model = DecisionTreeClassifier(random_state=42,max_depth=3)
-
 # Train the model
 dt_model.fit(X_train, y_train)
-
 # Predictions on the test set
 y_pred = dt_model.predict(X_test)
 # Calculate accuracy
@@ -99,4 +107,3 @@ def predict():
 
 
 app.run(__name__,debug=True, port=5000)
-
