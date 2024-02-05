@@ -4,6 +4,9 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
 
 # Load dataset
 titanic_data = pd.read_csv('titanic.csv')
@@ -46,8 +49,54 @@ print(class_report)
 
 
 #Visualize the decision tree
-from sklearn.tree import plot_tree
-plt.figure(figsize=(12, 8))
-plot_tree(dt_model, feature_names=X.columns, class_names=['Not Survived', 'Survived'], filled=True, rounded=True)
-plt.show()
+#from sklearn.tree import plot_tree
+#plt.figure(figsize=(12, 8))
+#plot_tree(dt_model, feature_names=X.columns, class_names=['Not Survived', 'Survived'], filled=True, rounded=True)
+#plt.show()
+
+
+
+
+#API part
+def create_response(success, message, data=None):
+    return {
+        "success": success,
+        "message": message,
+        "data": data
+    }
+
+# Route for prediction
+
+
+@app.route('/predict', methods=['GET'])
+def predict():
+    try:
+        # Extracting input parameters from the request query parameters
+        pclass = int(request.args.get('pclass'))
+        age = float(request.args.get('age'))
+        sibsp = int(request.args.get('sibsp'))
+        parch = int(request.args.get('parch'))
+        fare = float(request.args.get('fare'))
+        sex = str(request.args.get('sex'))
+        embarked = str(request.args.get('embarked'))
+
+        # Make a prediction using the model
+        input_data = pd.DataFrame([[pclass, age, sibsp, parch, fare, sex, embarked]],
+                                  columns=['Pclass', 'Age', 'SibSp', 'Parch', 'Fare', 'Sex', 'Embarked'])
+        hot_encoding = pd.get_dummies(input_data, columns=['Sex', 'Embarked'], drop_first=True)
+        prediction = dt_model.predict(input_data)[0]
+        
+
+        # Standardized API response
+        response = create_response(success=True, message="Prediction successful", data={"prediction": prediction})
+        return jsonify(response)
+
+    except Exception as e:
+        # Handle errors and provide a standardized error response
+        error_message = str(e)
+        response = create_response(success=False, message=f"Prediction failed: {error_message},\n Data : {hot_encoding}")
+        return jsonify(response)
+
+
+app.run(__name__,debug=True, port=5000)
 
