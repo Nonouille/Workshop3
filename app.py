@@ -1,5 +1,6 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import matplotlib.pyplot as plt
@@ -11,18 +12,12 @@ app = Flask(__name__)
 
 # Load dataset
 titanic_data = pd.read_csv('titanic.csv')
-# Explore the dataset
-print(titanic_data.head())
-
 
 # Handle missing values
 titanic_data = titanic_data.dropna(subset=['Embarked'])
 titanic_data['Age'].fillna(titanic_data['Age'].median(), inplace=True)
 # Encode categorical variables
 titanic_data = pd.get_dummies(titanic_data, columns=['Sex', 'Embarked'], drop_first=True)
-
-
-
 
 # Select features and target variable
 X = titanic_data[['Pclass', 'Age', 'SibSp', 'Parch', 'Fare', 'Sex_male', 'Embarked_Q', 'Embarked_S']]
@@ -35,28 +30,36 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 rf_model = RandomForestClassifier(random_state=42)
 rf_model.fit(X_train, y_train)
 rf_predictions = rf_model.predict(X_test)
+rf_accuracy = accuracy_score(y_test, rf_predictions)
 print("Random Forest Model:")
-print("Accuracy:", accuracy_score(y_test, rf_predictions))
+print("Accuracy:", rf_accuracy)
 print("Classification Report:\n", classification_report(y_test, rf_predictions))
 
 
 # Create Decision Tree model
 dt_model = DecisionTreeClassifier(random_state=42,max_depth=3)
-# Train the model
 dt_model.fit(X_train, y_train)
-# Predictions on the test set
-y_pred = dt_model.predict(X_test)
-# Calculate accuracy
-accuracy = accuracy_score(y_test, y_pred)
-print(f'Accuracy: {accuracy:.2f}')
+dt_prediction = dt_model.predict(X_test)
+dt_accuracy = accuracy_score(y_test, dt_prediction)
+print("Decision Tree Model:")
+print(f'Accuracy: {dt_accuracy:.2f}')
 # Confusion Matrix and Classification Report
-conf_matrix = confusion_matrix(y_test, y_pred)
-class_report = classification_report(y_test, y_pred)
-print('Confusion Matrix:')
-print(conf_matrix)
-print('\nClassification Report:')
+class_report = classification_report(y_test, dt_prediction)
+print('Classification Report:')
 print(class_report)
 
+
+# Create and train the K-Nearest Neighbors model
+knn_model = KNeighborsClassifier(n_neighbors=3)  # You can adjust the number of neighbors
+knn_model.fit(X_train, y_train)
+knn_prediction = knn_model.predict(X_test)
+knn_accuracy = accuracy_score(y_test, knn_prediction)
+print("K-Nearest Neighbors Model:")
+print(f'Accuracy: {knn_accuracy:.2f}')
+# Confusion Matrix and Classification Report
+class_report_knn = classification_report(y_test, knn_prediction)
+print('Classification Report:')
+print(class_report_knn)
 
 #Visualize the decision tree
 #from sklearn.tree import plot_tree
@@ -68,16 +71,31 @@ print(class_report)
 
 
 #API part
-def create_response(success, message, data=None):
-    return {
-        "success": success,
-        "message": message,
-        "data": data
-    }
+
+def switch_method(name):
+    if(name=="tree"):
+        return dt_model
+    if(name=='forest'):
+        return rf_model
+    if(name=='knn'):
+        return knn_model
+    
+def switch_accuracy(name):
+    if(name=="tree"):
+        return dt_accuracy
+    if(name=='forest'):
+        return rf_accuracy
+    if(name=='knn'):
+        return knn_accuracy
+    
+def aliveOrDead(number):
+    if(number==0):
+        return 'dead'
+    else:
+        return 'alive'
+
 
 # Route for prediction
-
-
 @app.route('/predict', methods=['GET'])
 def predict():
     try:
@@ -90,19 +108,29 @@ def predict():
         sex = int(request.args.get('sex_male'))
         embarked_q = int(request.args.get('embarked_Q'))
         embarked_s = int(request.args.get('embarked_S'))
+        method = str(request.args.get('method'))
 
         # Make a prediction using the model
         input_data = pd.DataFrame([[pclass, age, sibsp, parch, fare, sex, embarked_q,embarked_s]],
                                   columns=['Pclass', 'Age', 'SibSp', 'Parch', 'Fare', 'Sex_male', 'Embarked_Q','Embarked_S'])
-        prediction = dt_model.predict(input_data)[0]
         
+        model = switch_method(method)
+        accuracy = switch_accuracy(method)
+        prediction = aliveOrDead(int(model.predict(input_data)[0]))
 
         # Standardized API response
-        response = create_response(success=True, message="Prediction successful", data={"prediction": prediction})
+        
+        response = {
+            'message' : f"Prediction with {method} model successful : {prediction}. Accuracy of the test : {accuracy}",
+            'status' : 200
+            }
         return jsonify(response)
 
     except Exception as e:
         # Handle errors and provide a standardized error response
         error_message = str(e)
-        response = create_response(success=False, message=f"Prediction failed: {error_message},\n Data : {input_data}")
+        response = {
+            'message' : f"Prediction failed: {error_message}",
+            'status' : 404
+        }
         return jsonify(response)
