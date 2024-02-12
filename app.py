@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
@@ -61,16 +62,25 @@ class_report_knn = classification_report(y_test, knn_prediction)
 print('Classification Report:')
 print(class_report_knn)
 
-#Visualize the decision tree
-#from sklearn.tree import plot_tree
-#plt.figure(figsize=(12, 8))
-#plot_tree(dt_model, feature_names=X.columns, class_names=['Not Survived', 'Survived'], filled=True, rounded=True)
-#plt.show()
+# Initialize model weights (assuming three models)
+model_weights = np.ones(3) / 3  # Initial equal weights for each model
 
+# Adjust weights based on accuracy relative to consensus
+def update_weights(model_weights, individual_accuracies, consensus_accuracy):
+    alpha = 0.1  # Weight adjustment factor
 
+    for i in range(len(model_weights)):
+        model_weights[i] *= np.exp(alpha * (individual_accuracies[i] - consensus_accuracy))
 
+    # Normalize weights to sum to 1
+    model_weights /= np.sum(model_weights)
 
-#API part
+    return model_weights
+
+individual_accuracies = [0.77, 0.82, 0.71]  # Replace with actual accuracies
+consensus_accuracy = np.mean(individual_accuracies)
+model_weights = update_weights(model_weights, individual_accuracies, consensus_accuracy)
+print(f"Updated Model Weights: {model_weights}")
 
 def switch_method(name):
     if(name=="tree"):
@@ -93,12 +103,21 @@ def aliveOrDead(number):
         return 'dead'
     else:
         return 'alive'
-
-
+    
+#API part
 # Route for prediction
 @app.route('/predict', methods=['GET'])
 def predict():
-    try:
+    pclass = 1
+    age = 54.2
+    sibsp = 0
+    parch = 0
+    fare = 68.2
+    sex = 0
+    embarked_q = 0
+    embarked_s = 0
+    method = 'knn'
+    try :
         # Extracting input parameters from the request query parameters
         pclass = int(request.args.get('pclass'))
         age = float(request.args.get('age'))
@@ -134,3 +153,5 @@ def predict():
             'status' : 404
         }
         return jsonify(response)
+    
+app.run(host="0.0.0.0")
