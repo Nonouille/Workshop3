@@ -28,36 +28,14 @@ y = titanic_data['Survived']
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
 
-### Random Forest test
-rf_model = RandomForestClassifier(random_state=42)
-rf_model.fit(X_train, y_train)
-rf_predictions = rf_model.predict(X_test)
-rf_accuracy = accuracy_score(y_test, rf_predictions)
-print("Random Forest Model:")
-print("Accuracy:", rf_accuracy)
-print("Classification Report:\n", classification_report(y_test, rf_predictions))
-
-
-# Create Decision Tree model
-dt_model = DecisionTreeClassifier(random_state=42,max_depth=3)
-dt_model.fit(X_train, y_train)
-dt_prediction = dt_model.predict(X_test)
-dt_accuracy = accuracy_score(y_test, dt_prediction)
-print("Decision Tree Model:")
-print(f'Accuracy: {dt_accuracy:.2f}')
-# Confusion Matrix and Classification Report
-class_report = classification_report(y_test, dt_prediction)
-print('Classification Report:')
-print(class_report)
-
 
 # Create and train the K-Nearest Neighbors model
-knn_model = KNeighborsClassifier(n_neighbors=3)  # You can adjust the number of neighbors
-knn_model.fit(X_train, y_train)
-knn_prediction = knn_model.predict(X_test)
-knn_accuracy = accuracy_score(y_test, knn_prediction)
+model = KNeighborsClassifier(n_neighbors=3)  # You can adjust the number of neighbors
+model.fit(X_train, y_train)
+knn_prediction = model.predict(X_test)
+accuracy = accuracy_score(y_test, knn_prediction)
 print("K-Nearest Neighbors Model:")
-print(f'Accuracy: {knn_accuracy:.2f}')
+print(f'Accuracy: {accuracy:.2f}')
 # Confusion Matrix and Classification Report
 class_report_knn = classification_report(y_test, knn_prediction)
 print('Classification Report:')
@@ -83,22 +61,8 @@ consensus_accuracy = np.mean(individual_accuracies)
 model_weights = update_weights(model_weights, individual_accuracies, consensus_accuracy)
 print(f"Updated Model Weights: {model_weights}")
 
-def switch_method(name):
-    if(name=="tree"):
-        return dt_model
-    if(name=='forest'):
-        return rf_model
-    if(name=='knn'):
-        return knn_model
-    
-def switch_accuracy(name):
-    if(name=="tree"):
-        return dt_accuracy
-    if(name=='forest'):
-        return rf_accuracy
-    if(name=='knn'):
-        return knn_accuracy
-    
+
+
 def aliveOrDead(number):
     if(number==0):
         return 'dead'
@@ -143,8 +107,7 @@ def predict():
         input_data = pd.DataFrame([[pclass, age, sibsp, parch, fare, sex, embarked_q,embarked_s]],
                                   columns=['Pclass', 'Age', 'SibSp', 'Parch', 'Fare', 'Sex_male', 'Embarked_Q','Embarked_S'])
         
-        model = switch_method(method)
-        accuracy = switch_accuracy(method)
+
         prediction = aliveOrDead(int(model.predict(input_data)[0]))
 
         # Standardized API response
@@ -165,4 +128,3 @@ def predict():
         return jsonify(response)
     
 app.run(host="0.0.0.0")
->>>>>>> db2d301bcd18edfc43600e628f5b1975daa76132
