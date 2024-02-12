@@ -107,6 +107,15 @@ def aliveOrDead(number):
     
 #API part
 # Route for prediction
+@app.route('/health',methods=['GET'])
+def health():
+    response = {
+            'message' : "Alive",
+            'status' : 200
+            }
+    return jsonify(response)
+         
+
 @app.route('/predict', methods=['GET'])
 def predict():
     pclass = 1
@@ -156,3 +165,4 @@ def predict():
         return jsonify(response)
     
 app.run(host="0.0.0.0")
+>>>>>>> db2d301bcd18edfc43600e628f5b1975daa76132
