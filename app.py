@@ -113,54 +113,51 @@ def health():
             'status' : 200
             }
     return jsonify(response)
-         
 
-@app.route('/predict', methods=['GET'])
+@app.route('/predict', methods=['POST'])
 def predict():
-    pclass = 1
-    age = 54.2
-    sibsp = 0
-    parch = 0
-    fare = 68.2
-    sex = 0
-    embarked_q = 0
-    embarked_s = 0
-    method = 'knn'
-    try :
-        # Extracting input parameters from the request query parameters
-        pclass = int(request.args.get('pclass'))
-        age = float(request.args.get('age'))
-        sibsp = int(request.args.get('sibsp'))
-        parch = int(request.args.get('parch'))
-        fare = float(request.args.get('fare'))
-        sex = int(request.args.get('sex_male'))
-        embarked_q = int(request.args.get('embarked_Q'))
-        embarked_s = int(request.args.get('embarked_S'))
-        method = str(request.args.get('method'))
+    try:
+        # Extract JSON data from the request
+        data = request.get_json()
+
+        # Extracting input parameters from JSON data
+        pclass = data.get('pclass', 1)
+        age = data.get('age', 54.2)
+        sibsp = data.get('sibsp', 0)
+        parch = data.get('parch', 0)
+        fare = data.get('fare', 68.2)
+        sex = data.get('sex_male', 0)
+        embarked_q = data.get('embarked_Q', 0)
+        embarked_s = data.get('embarked_S', 0)
+        method = data.get('method', 'knn')
 
         # Make a prediction using the model
-        input_data = pd.DataFrame([[pclass, age, sibsp, parch, fare, sex, embarked_q,embarked_s]],
+        input_data = pd.DataFrame([[pclass, age, sibsp, parch, fare, sex, embarked_q, embarked_s]],
                                   columns=['Pclass', 'Age', 'SibSp', 'Parch', 'Fare', 'Sex_male', 'Embarked_Q','Embarked_S'])
-        
+
         model = switch_method(method)
-        accuracy = switch_accuracy(method)
-        prediction = aliveOrDead(int(model.predict(input_data)[0]))
+        probabilities = model.predict_proba(input_data)[0]
+        survival_probabilities = {'dead': probabilities[0], 'alive': probabilities[1]}
 
         # Standardized API response
-        
         response = {
-            'message' : f"Prediction with {method} model successful : {prediction}. Accuracy of the test : {accuracy}",
-            'status' : 200
-            }
+            'message': f"Prediction with {method} model successful",
+            'survival_probabilities': survival_probabilities,
+            'status': 200
+        }
         return jsonify(response)
 
     except Exception as e:
         # Handle errors and provide a standardized error response
         error_message = str(e)
         response = {
-            'message' : f"Prediction failed: {error_message}",
-            'status' : 404
+            'message': f"Prediction failed: {error_message}",
+            'status': 404
         }
         return jsonify(response)
+
+if __name__ == "__main__":
+    app.run(debug=True)
+
     
 app.run(host="0.0.0.0")
