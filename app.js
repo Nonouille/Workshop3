@@ -24,7 +24,7 @@ let orderDetails = []
 let carts = []
 let cartDetails = []
 
-async function run() {
+async function updateDatabase() {
   try {
     const resultProducts = await client.query("SELECT * FROM product");
     products = resultProducts.rows;
@@ -48,7 +48,6 @@ async function run() {
     console.log("Database retrieved");
   }
 }
-run()
 
 function generateUniqueId() {
   actualID ++;
@@ -108,16 +107,8 @@ app.post('/products', async (req, res) => {
   // Generate a unique identifier for the new product
   const newProductId = generateUniqueId(category);
   // Create a new product object
-  const newProduct = {
-    id: newProductId,
-    name,
-    description,
-    price,
-    category,
-    inStock,
-  };
 
-  const values = [newProduct.id, name, description, price, category, inStock];
+  const values = [newProductId, name, description, price, category, inStock];
 
   const query = `
       INSERT INTO product(id, name, description, price, category, inStock)
@@ -125,17 +116,20 @@ app.post('/products', async (req, res) => {
     `;
 
   // Use the pg library to perform a bulk insert
-  await client.query(query, values.flat());
+  const result = await client.query(query, values.flat());
 
-  // Add the new product to the products array
-  products.push(newProduct);
-
-  // Respond with the created product
-  res.status(201).json(newProduct);
+  // Check if a record was updated
+  if (result.rowCount === 0) {
+    return res.status(400).json({ error: 'Product not found' });
+  }
+  // Update the tables
+  updateDatabase();
+  // Respond with the updated product details
+  res.status(201).json({message : "Product sucessfuly added ", elementAdded : result.rows[0]});
 });
 
 //Modify a product
-app.put('/products/:id', (req, res) => {
+app.put('/products/:id', async (req, res) => {
   const productId = parseInt(req.params.id, 10); // Parse the ID as an integer
   const productIndex = products.findIndex(product => product.id === productId);
   //check index is valid
@@ -144,27 +138,66 @@ app.put('/products/:id', (req, res) => {
   }
   // Extract the updated product information from the request body
   const updatedFields = req.body;
-  // Update only the fields that are provided in the request body
-  Object.keys(updatedFields).forEach(key => {
-    if (key in products[productIndex]) {
-      products[productIndex][key] = updatedFields[key];
-    }
-  });
+  // Construct a parameterized SQL query for updating the product
+  const query = `UPDATE product SET
+      name = COALESCE($1, name),
+      description = COALESCE($2, description),
+      price = COALESCE($3, price),
+      category = COALESCE($4, category),
+      inStock = COALESCE($5, inStock)
+    WHERE id = $6
+    RETURNING *
+  `;
+  // Map the updated fields to an array, ensuring that missing fields are set to NULL
+  const values = [
+    updatedFields.name,
+    updatedFields.description,
+    updatedFields.price,
+    updatedFields.category,
+    updatedFields.inStock,
+    productId,
+  ];
+  // Use the pg library to execute the update query
+  const result = await client.query(query, values);
+  // Check if a record was updated
+  if (result.rowCount === 0) {
+    return res.status(404).json({ error: 'Product not found' });
+  }
+  // Update the tables
+  updateDatabase();
   // Respond with the updated product details
-  res.status(200).json(products[productIndex]);
+  res.status(200).json(result.rows[0]);
 });
 
 //Delete a product
-app.delete('/products/:id', (req, res) => {
+app.delete('/products/:id', async(req, res) => {
   const productId = parseInt(req.params.id, 10); // Parse the ID as an integer
   const productIndex = products.findIndex(product => product.id === productId);
   if (productIndex === -1) {
     return res.status(404).json({ error: 'Product not found' });
   }
-  // Remove the product from the products array
-  products.splice(productIndex, 1)[0];
-  // Respond with a confirmation message
-  res.status(200).json({ message: 'Product deleted successfully', productIndex });
+
+  // Construct a parameterized SQL query for deleting the product
+  const query = `
+    DELETE FROM product
+    WHERE id = $1
+    RETURNING *
+  `;
+  // Use the pg library to execute the delete query
+  const result = await client.query(query, [productId]);
+
+  // Check if a record was deleted
+  if (result.rowCount === 0) {
+    return res.status(404).json({ error: 'Product not found' });
+  }
+
+  // Update the tables
+  updateDatabase();
+  // Respond with the deleted product details
+  res.status(200).json({
+    message: 'Product deleted successfully',
+    deletedProduct: result.rows[0],
+  });
 });
 
 //###################################
@@ -300,7 +333,9 @@ app.delete('/cart/:userId/item/:productId', (req,res) => {
   deletedItem = carts[cartIndex].cartDetail.splice(cartDetailIndex, 1)[0];
   res.status(200).json({"message" : "Sucesfully deleted ","deletedItem" : deletedItem});
 })
+
 console.log('starting...');
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+updateDatabase()
