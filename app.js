@@ -1,9 +1,54 @@
 const express = require("express");
+const { Client } = require("pg");
 const app = express();
 const PORT = process.env.PORT || 3000;
+
 let actualID = 15;
-let orderID = 0;
+let orderID = 1;
 app.use(express.json()); // => to parse request body with http header "content-type": "application/json"
+
+const client = new Client({
+  user: "postgres",
+  host: "localhost",
+  database: "shop",
+  password: "root",
+  port: 5432,
+});
+
+client.connect();
+
+
+let products = []
+let orders = []
+let orderDetails = []
+let carts = []
+let cartDetails = []
+
+async function run() {
+  try {
+    const resultProducts = await client.query("SELECT * FROM product");
+    products = resultProducts.rows;
+
+    const resultOrders = await client.query("SELECT * FROM orders");
+    orders = resultOrders.rows;
+
+    const resultOrderDetails = await client.query("SELECT * FROM orderDetails");
+    orderDetails = resultOrderDetails.rows;
+
+    const resultCarts = await client.query("SELECT * FROM carts");
+    carts = resultCarts.rows;
+
+    const resultCartDetails = await client.query("SELECT * FROM cartDetails");
+    cartDetails = resultCartDetails.rows;
+  }
+  catch (err) {
+    console.error("Error initializing the database", err);
+  }
+  finally {
+    console.log("Database retrieved");
+  }
+}
+run()
 
 function generateUniqueId() {
   actualID ++;
@@ -14,132 +59,6 @@ function generateUniqueIdOrder() {
   orderID ++;
   return orderID;
 }
-
-let products = [
-  {
-    id: 1,
-    name: 'Canon EOS 5D Mark IV',
-    description: '30.4MP Full-Frame DSLR Camera',
-    price: 2499.99,
-    category: 'Cameras',
-    inStock: true,
-  },
-  {
-    id: 2,
-    name: 'Sony Alpha a7 III',
-    description: '24.2MP Mirrorless Camera with 28-70mm Lens',
-    price: 1999.99,
-    category: 'Cameras',
-    inStock: true,
-  },
-  {
-    id: 3,
-    name: 'Nikon Z6',
-    description: '24.5MP Mirrorless Camera with NIKKOR Z 24-70mm Lens',
-    price: 2399.99,
-    category: 'Cameras',
-    inStock: false,
-  },
-  {
-    id: 4,
-    name: 'Fujifilm X-T4',
-    description: '26.1MP Mirrorless Camera with XF 18-55mm Lens',
-    price: 1799.99,
-    category: 'Cameras',
-    inStock: true,
-  },
-  {
-    id: 5,
-    name: 'Panasonic Lumix GH5',
-    description: '20.3MP Mirrorless Camera with 12-60mm Lens',
-    price: 1799.99,
-    category: 'Cameras',
-    inStock: true,
-  },
-  {
-    id: 6,
-    name: 'Canon EF 50mm f/1.8 STM Lens',
-    description: 'Prime Lens for Canon DSLR Cameras',
-    price: 125.99,
-    category: 'Lenses',
-    inStock: true,
-  },
-  {
-    id: 7,
-    name: 'Sigma 70-200mm f/2.8 DG OS HSM Sports Lens',
-    description: 'Telephoto Zoom Lens for Nikon DSLR Cameras',
-    price: 1299.99,
-    category: 'Lenses',
-    inStock: true,
-  },
-  {
-    id: 8,
-    name: 'Sony FE 24mm f/1.4 GM Lens',
-    description: 'Wide-Angle Prime Lens for Sony Alpha Cameras',
-    price: 1399.99,
-    category: 'Lenses',
-    inStock: false,
-  },
-  {
-    id: 9,
-    name: 'Nikon AF-S DX NIKKOR 35mm f/1.8G Lens',
-    description: 'Wide-Angle Prime Lens for Nikon DSLR Cameras',
-    price: 199.99,
-    category: 'Lenses',
-    inStock: true,
-  },
-  {
-    id: 10,
-    name: 'Tamron 24-70mm f/2.8 Di VC USD G2 Lens',
-    description: 'Standard Zoom Lens for Canon DSLR Cameras',
-    price: 1199.99,
-    category: 'Lenses',
-    inStock: true,
-  },{
-    id: 11,
-    name: 'Manfrotto Befree Advanced Travel Tripod',
-    description: 'Carbon Fiber 4-Section Tripod',
-    price: 349.99,
-    category: 'Accessories',
-    inStock: true,
-  },
-  {
-    id: 12,
-    name: 'SanDisk Extreme PRO 128GB SDXC Memory Card',
-    description: 'High-Speed UHS-I U3 V30 SD Card',
-    price: 39.99,
-    category: 'Accessories',
-    inStock: true,
-  },
-  {
-    id: 13,
-    name: 'Peak Design Everyday Sling 5L',
-    description: 'Compact Camera Bag',
-    price: 89.99,
-    category: 'Accessories',
-    inStock: false,
-  },
-  {
-    id: 14,
-    name: 'Godox AD200Pro TTL Pocket Flash',
-    description: 'Portable Strobe with Built-in Battery',
-    price: 299.99,
-    category: 'Lighting',
-    inStock: true,
-  },
-  {
-    id: 15,
-    name: 'Wacom Intuos Pro Digital Graphic Drawing Tablet',
-    description: 'Professional Pen Tablet for Digital Art',
-    price: 349.99,
-    category: 'Accessories',
-    inStock: true,
-  },
-];
-
-orders = [];
-
-carts = [];
 
 
 app.get('/getServer', (req, res) => {
@@ -163,8 +82,8 @@ app.get('/products', (req,res) => {
   }
   //Filtering stock
   if (inStock) {
-      const inStockValue = inStock.toLowerCase() === 'true'; // Convert string to boolean
-      filteredProducts = filteredProducts.filter(product => product.inStock === inStockValue);
+    inStockValue = inStock.toLowerCase()=== "true";
+    filteredProducts = filteredProducts.filter(product => product.instock === inStockValue);
   }
   res.status(200).json(filteredProducts);
 })
@@ -183,7 +102,7 @@ app.get('/products/:id', (req, res) => {
 })
 
 //Add a new product
-app.post('/products', (req, res) => {
+app.post('/products', async (req, res) => {
   // Extract product information from the request body
   const { name, description, price, category, inStock } = req.body;
   // Generate a unique identifier for the new product
@@ -197,6 +116,16 @@ app.post('/products', (req, res) => {
     category,
     inStock,
   };
+
+  const values = [newProduct.id, name, description, price, category, inStock];
+
+  const query = `
+      INSERT INTO product(id, name, description, price, category, inStock)
+      VALUES($1, $2, $3, $4, $5, $6)
+    `;
+
+  // Use the pg library to perform a bulk insert
+  await client.query(query, values.flat());
 
   // Add the new product to the products array
   products.push(newProduct);
